@@ -70,7 +70,8 @@ def build_messages(chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
     return [{"role": "system", "content": system_prompt}] + recent_history
 
 
-def stream_localai_response(
+def stream_llm_response(
+    engine: str,
     base_url: str,
     api_key: str,
     model_name: str,
@@ -78,16 +79,27 @@ def stream_localai_response(
     temperature: float,
     max_tokens: int,
 ):
-    llm = ChatOpenAI(
-        model=model_name,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        api_key=api_key,
-        base_url=base_url,
-        streaming=True,
-        model_kwargs={"stream_options": {"include_usage": True}}
-    )
-    logging.info("Enviando completación a LocalAI (modelo: %s)...", model_name)
+    if engine == "LocalAI":
+        llm = ChatOpenAI(
+            model=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            api_key=api_key,
+            base_url=base_url,
+            streaming=True,
+            model_kwargs={"stream_options": {"include_usage": True}}
+        )
+        logging.info("Enviando completación a LocalAI (modelo: %s)...", model_name)
+    else:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            google_api_key=api_key
+        )
+        logging.info("Enviando completación a Google Gemini (modelo: %s)...", model_name)
+        
     start_time = time.time()
 
     # Convert dict messages to Langchain messages
@@ -102,17 +114,42 @@ def stream_localai_response(
         elif role == "assistant":
             lc_messages.append(AIMessage(content=content))
 
+    # Estimate prompt tokens locally just in case the API omits it (like Gemini Streaming)
+    estimated_prompt_tokens = 0
+    try:
+        import tiktoken
+        encoding = tiktoken.get_encoding("cl100k_base")
+        estimated_prompt_tokens = sum(len(encoding.encode(m.get("content", ""))) for m in messages)
+    except Exception:
+        pass
+
     for chunk in llm.stream(lc_messages):
         if chunk.content:
-            yield {"type": "token", "content": chunk.content}
+            content_str = chunk.content
+            if isinstance(content_str, list):
+                # Extract text from blocks (ignoring thinking blocks)
+                texts = [block.get("text", "") for block in content_str if isinstance(block, dict) and "text" in block]
+                content_str = "".join(texts)
+                
+            if content_str:
+                yield {"type": "token", "content": content_str}
 
         # Check if usage metadata is available in LangChain chunks
         usage = getattr(chunk, "usage_metadata", None)
-        if usage and usage.get("total_tokens", 0) > 0:
+        if usage and (usage.get("total_tokens", 0) > 0 or usage.get("output_tokens", 0) > 0):
+            input_toks = usage.get("input_tokens", 0)
+            output_toks = usage.get("output_tokens", 0)
+            
+            # Si Gemini omitió los input tokens, usamos la estimación local
+            if input_toks == 0 and estimated_prompt_tokens > 0:
+                input_toks = estimated_prompt_tokens
+                
+            total_toks = input_toks + output_toks
+
             usage_dict = {
-                "prompt_tokens": usage.get("input_tokens"),
-                "completion_tokens": usage.get("output_tokens"),
-                "total_tokens": usage.get("total_tokens"),
+                "prompt_tokens": input_toks,
+                "completion_tokens": output_toks,
+                "total_tokens": total_toks,
             }
             yield {"type": "usage", "content": usage_dict}
 
@@ -161,9 +198,18 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Configuración")
-        base_url = st.text_input("LocalAI base URL", value=DEFAULT_BASE_URL)
-        api_key = st.text_input("API key", value=DEFAULT_API_KEY, type="password")
-        model_name = st.text_input("Modelo", value=DEFAULT_MODEL)
+        
+        engine = st.radio("Motor de Inferencia", options=["LocalAI", "Google Gemini"])
+        
+        if engine == "LocalAI":
+            base_url = st.text_input("LocalAI base URL", value=DEFAULT_BASE_URL)
+            api_key = st.text_input("API key", value=DEFAULT_API_KEY, type="password")
+            model_name = st.text_input("Modelo", value=DEFAULT_MODEL)
+        else:
+            base_url = ""
+            api_key = st.text_input("Gemini API key", value=os.getenv("GEMINI_API_KEY", ""), type="password")
+            model_name = st.text_input("Modelo", value="gemini-2.5-flash")
+            
         temperature = st.slider("Temperatura", min_value=0.0, max_value=1.0, value=0.1, step=0.05)
         max_tokens = st.number_input("Máximo de tokens de salida", min_value=128, max_value=8192, value=2048, step=128)
 
@@ -212,7 +258,8 @@ def main() -> None:
 
         try:
             with st.spinner(""):
-                for item in stream_localai_response(
+                for item in stream_llm_response(
+                    engine=engine,
                     base_url=base_url,
                     api_key=api_key,
                     model_name=model_name,
@@ -234,12 +281,12 @@ def main() -> None:
                         final_usage_text = f"Tokens — prompt: {u.get('prompt_tokens')}, completion: {u.get('completion_tokens')}, total: {u.get('total_tokens')}"
                         usage_placeholder.caption(final_usage_text)
         except Exception as error:
-            logging.exception("Error consultando LocalAI")
-            full_response = f"Error consultando LocalAI: {error}"
+            logging.exception(f"Error consultando {engine}")
+            full_response = f"Error consultando {engine}: {error}"
             response_placeholder.error(full_response)
 
     # Solo guardar si hay contenido real
-    if full_response and not full_response.startswith("Error consultando LocalAI"):
+    if full_response and not full_response.startswith("Error consultando"):
         msg_to_save = {"role": "assistant", "content": full_response}
         if final_usage_text:
             msg_to_save["usage"] = final_usage_text

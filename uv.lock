@@ -1288,6 +1288,7 @@ dependencies = [
     { name = "requests" },
     { name = "selenium" },
     { name = "streamlit" },
+    { name = "tiktoken" },
     { name = "trafilatura" },
 ]
 
@@ -1301,6 +1302,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.33.1" },
     { name = "selenium", specifier = ">=4.43.0" },
     { name = "streamlit", specifier = ">=1.32.0" },
+    { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "trafilatura", specifier = ">=2.0.0" },
 ]
 

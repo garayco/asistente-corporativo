@@ -207,7 +207,7 @@ def main() -> None:
             model_name = st.text_input("Modelo", value=DEFAULT_MODEL)
         else:
             base_url = ""
-            api_key = st.text_input("Gemini API key", value=os.getenv("GEMINI_API_KEY", ""), type="password")
+            api_key = st.text_input("Google AI Studio API key", value=os.getenv("GEMINI_API_KEY", ""), type="password")
             model_name = st.text_input("Modelo", value="gemini-2.5-flash")
             
         temperature = st.slider("Temperatura", min_value=0.0, max_value=1.0, value=0.1, step=0.05)

@@ -1,4 +1,4 @@
-# 🏛️ Asistente Corporativo TQ
+# Asistente Corporativo TQ
 
 > **Inteligencia Artificial Especializada para el Grupo Empresarial Tecnoquímicas (TQ)**
 
@@ -6,19 +6,19 @@ Este proyecto es una solución integral de **IA Generativa (GenAI)** diseñada p
 
 ---
 
-## 🚀 Características Principales
+## Características Principales
 
-*   **🔍 Pipeline de Extracción Inteligente:** Sistema de scraping automatizado que recorre sitios corporativos, extrae contenido relevante y lo limpia para su procesamiento.
-*   **🧠 Estructuración Semántica:** Utiliza modelos de lenguaje avanzados (Gemini/Gemma) para transformar datos crudos en una base de conocimientos estructurada y jerárquica.
-*   **💬 Chat Multimotor:** Interfaz interactiva construida en **Streamlit** que permite alternar entre:
+*   **Pipeline de Extracción Inteligente:** Sistema de scraping automatizado que recorre sitios corporativos, extrae contenido relevante y lo limpia para su procesamiento.
+*   **Estructuración Semántica:** Utiliza modelos de lenguaje avanzados (Gemini/Gemma) para transformar datos crudos en una base de conocimientos estructurada y jerárquica.
+*   **Chat Multimotor:** Interfaz interactiva construida en **Streamlit** que permite alternar entre:
     *   **LocalAI:** Ejecución privada y local de modelos (Gemma, etc.) garantizando privacidad de datos.
     *   **Google Gemini:** Potencia y velocidad utilizando las últimas APIs de Google.
-*   **🛠️ Control Total de Contexto:** Sistema de prompts blindado con reglas estrictas de seguridad y fidelidad para evitar alucinaciones y filtraciones de configuración.
-*   **📊 Auditoría de Tokens:** Seguimiento en tiempo real del consumo de tokens y métricas de rendimiento de inferencia.
+*   **Control Total de Contexto:** Sistema de prompts blindado con reglas estrictas de seguridad y fidelidad para evitar alucinaciones y filtraciones de configuración.
+*   **Auditoría de Tokens:** Seguimiento en tiempo real del consumo de tokens y métricas de rendimiento de inferencia.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 El proyecto se divide en dos fases críticas:
 
@@ -37,7 +37,7 @@ El archivo `chat_tq_localai.py` levanta una aplicación Streamlit que:
 
 ---
 
-## 🛠️ Instalación y Configuración
+## Instalación y Configuración
 
 ### Requisitos Previos
 - Python 3.12+
@@ -59,7 +59,7 @@ El archivo `chat_tq_localai.py` levanta una aplicación Streamlit que:
 
 ---
 
-## 📖 Modo de Uso
+## Modo de Uso
 
 ### 1. Generar/Actualizar Base de Conocimientos
 Si deseas actualizar la información que conoce el asistente:
@@ -78,7 +78,7 @@ streamlit run chat_tq_localai.py
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 .
@@ -95,7 +95,7 @@ streamlit run chat_tq_localai.py
 
 ---
 
-## 🛡️ Seguridad y Fidelidad
+## Seguridad y Fidelidad
 El asistente está configurado bajo el principio de **"Cero Alucinaciones"**. Si una consulta no puede ser respondida con la información contenida en el `<base_conocimiento>`, el modelo declinará educadamente la respuesta en lugar de inventar datos, manteniendo la integridad de la marca **Tecnoquímicas**.
 
 ---

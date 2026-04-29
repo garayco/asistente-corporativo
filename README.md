@@ -49,7 +49,7 @@ El archivo `chat_tq_localai.py` levanta una aplicación Streamlit que:
    ```env
    LOCALAI_BASE_URL=http://localhost:8080/v1/
    LOCALAI_API_KEY=tu_api_key_opcional
-   LOCALAI_MODEL=gemma-3-12b-it-Q4_K_M.gguf
+   LOCALAI_MODEL=gemma-3-12b-it-UD-IQ2_XXS.gguf
    GEMINI_API_KEY=tu_google_api_key
    ```
 3. Instalar dependencias:

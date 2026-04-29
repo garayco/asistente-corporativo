@@ -16,7 +16,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_FILE_PATH = PROJECT_DIR / "scraping" / "output" / "tq_system_prompt.md"
 DEFAULT_BASE_URL = os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1/")
 DEFAULT_API_KEY = os.getenv("LOCALAI_API_KEY", "")
-DEFAULT_MODEL = os.getenv("LOCALAI_MODEL", "gemma-3-12b-it-Q4_K_M.gguf")
+DEFAULT_MODEL = os.getenv("LOCALAI_MODEL", "gemma-3-12b-it-UD-IQ2_XXS.gguf")
 MAX_HISTORY_MESSAGES = 8
 
 
@@ -98,7 +98,7 @@ def stream_llm_response(
             max_tokens=max_tokens,
             google_api_key=api_key
         )
-        logging.info("Enviando completación a Google Gemini (modelo: %s)...", model_name)
+        logging.info("Enviando completación a Google AI Studio (modelo: %s)...", model_name)
         
     start_time = time.time()
 
@@ -199,7 +199,7 @@ def main() -> None:
     with st.sidebar:
         st.header("Configuración")
         
-        engine = st.radio("Motor de Inferencia", options=["LocalAI", "Google Gemini"])
+        engine = st.radio("Motor de Inferencia", options=["LocalAI", "Google AI Studio"])
         
         if engine == "LocalAI":
             base_url = st.text_input("LocalAI base URL", value=DEFAULT_BASE_URL)

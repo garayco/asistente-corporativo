@@ -31,11 +31,11 @@ def is_relevant(text):
 
 
 def split_text(text, chunk_size=CHUNK_SIZE):
-    """Fast text splitter using paragraph boundaries."""
+    """Fast text splitter using paragraph boundaries and recursive fallback for long blocks."""
     if len(text) <= chunk_size:
         return [text] if len(text) > 100 else []
     
-    # Split by paragraphs first, then recombine if needed
+    # Split by paragraphs first
     paragraphs = re.split(r'\n\n+', text)
     
     chunks = []
@@ -46,29 +46,45 @@ def split_text(text, chunk_size=CHUNK_SIZE):
         if not para:
             continue
             
-        # If single paragraph exceeds chunk_size, split it further
+        # If single paragraph exceeds chunk_size, split it further using multi-level fallback
         if len(para) > chunk_size:
             if current_chunk:
                 chunks.append(current_chunk)
                 current_chunk = ""
             
-            # Split long paragraph by sentences
-            sentences = re.split(r'(?<=[.!?])\s+', para)
-            temp_chunk = ""
+            # Level 1: Split by sentences
+            parts = re.split(r'(?<=[.!?])\s+', para)
             
-            for sent in sentences:
-                if len(temp_chunk) + len(sent) + 1 > chunk_size:
+            # Level 2 & 3: Semicolons and Commas for parts that are still too long
+            refined_parts = []
+            for p in parts:
+                if len(p) > chunk_size:
+                    # Try semicolons
+                    sub_p = re.split(r'(?<=;)\s+', p)
+                    for item in sub_p:
+                        if len(item) > chunk_size:
+                            # Last resort: Try commas
+                            refined_parts.extend(re.split(r'(?<=,)\s+', item))
+                        else:
+                            refined_parts.append(item)
+                else:
+                    refined_parts.append(p)
+            
+            # Recombine refined parts into manageable chunks
+            temp_chunk = ""
+            for part in refined_parts:
+                if len(temp_chunk) + len(part) + 1 > chunk_size:
                     if temp_chunk:
                         chunks.append(temp_chunk)
-                    temp_chunk = sent
+                    temp_chunk = part
                 else:
-                    temp_chunk = (temp_chunk + " " + sent).strip() if temp_chunk else sent
+                    temp_chunk = (temp_chunk + " " + part).strip() if temp_chunk else part
             
             if temp_chunk:
                 chunks.append(temp_chunk)
         
-        # Normal paragraph
-        elif len(current_chunk) + len(para) + 1 > chunk_size:
+        # Normal paragraph handling
+        elif len(current_chunk) + len(para) + 2 > chunk_size:
             if current_chunk:
                 chunks.append(current_chunk)
             current_chunk = para

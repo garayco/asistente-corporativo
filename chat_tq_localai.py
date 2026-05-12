@@ -1,298 +1,115 @@
-import logging
-import os
-import time
-from pathlib import Path
-from datetime import datetime
-from dotenv import load_dotenv
-
-load_dotenv()
-
 import streamlit as st
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-
-
-PROJECT_DIR = Path(__file__).resolve().parent
-PROMPT_FILE_PATH = PROJECT_DIR / "scraping" / "output" / "tq_system_prompt.md"
-DEFAULT_BASE_URL = os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1/")
-DEFAULT_API_KEY = os.getenv("LOCALAI_API_KEY", "")
-DEFAULT_MODEL = os.getenv("LOCALAI_MODEL", "gemma-3-12b-it-UD-IQ2_XXS.gguf")
-MAX_HISTORY_MESSAGES = 8
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
+from langchain_core.messages import HumanMessage, AIMessage
+from streamlit.runtime.scriptrunner import get_script_run_ctx
+from agent import agent_executor
+from config import (
+    LOCALAI_BASE_URL as DEFAULT_BASE_URL,
+    LOCALAI_API_KEY as DEFAULT_API_KEY,
+    CHAT_MODEL as DEFAULT_MODEL,
+    GEMINI_API_KEY as DEFAULT_GEMINI_KEY,
+    GEMINI_MODEL as DEFAULT_GEMINI_MODEL
 )
 
-
-@st.cache_data(show_spinner=False)
-def load_system_prompt(path: str) -> str:
-    """Carga el system prompt desde el archivo markdown (ya incluye la base de conocimientos)."""
-    prompt_path = Path(path)
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"No se encontró el archivo de prompting: {prompt_path}")
-    return prompt_path.read_text(encoding="utf-8")
-
-
-def build_messages(chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Construye los mensajes cargando el system prompt desde el archivo .md."""
-    system_prompt = load_system_prompt(str(PROMPT_FILE_PATH))
+def display_tokens(msg: AIMessage):
+    """
+    Extrae y muestra los metadatos de consumo de tokens en la interfaz.
     
-    # Filtrar mensajes para asegurar alternancia user/assistant
-    filtered_history = []
-    prev_role = None
+    Args:
+        msg (AIMessage): Mensaje del asistente que contiene usage_metadata.
+    """
+    usage = getattr(msg, "usage_metadata", None)
+    if usage:
+        i = usage.get("input_tokens", 0)
+        o = usage.get("output_tokens", 0)
+        t = usage.get("total_tokens", i + o)
+        st.caption(f"**Tokens:** {i} (in) | {o} (out) | **{t} total**")
+
+def get_message_text(msg) -> str:
+    """Extrae el contenido de texto limpio de un mensaje, manejando listas"""
+    if isinstance(msg.content, list):
+        return "".join([c.get("text", "") for c in msg.content if isinstance(c, dict) and c.get("type") == "text"])
+    return msg.content
+
+st.set_page_config(page_title="Asistente Corporativo TQ", layout="wide")
+st.title("Asistente Corporativo Grupo Empresarial Tecnoquímicas")
+
+# 1. Gestión de Sesión y Persistencia
+ctx = get_script_run_ctx()
+thread_id = ctx.session_id if ctx else "default"
+
+# 2. Barra Lateral (Parámetros de Configuración)
+debug_mode = False
+with st.sidebar:
+    st.header("Configuración")
     
-    for msg in chat_history:
-        role = msg.get("role")
-        content = msg.get("content", "").strip()
-        
-        # Saltar mensajes vacíos o del rol system (ya tenemos el nuestro)
-        if not content or role == "system":
-            continue
-        
-        # Si es el mismo rol que el anterior, saltarlo
-        if role == prev_role:
-            logging.warning(f"Saltando mensaje duplicado: {role}")
-            continue
-        
-        filtered_history.append(msg)
-        prev_role = role
+    provider = st.radio("Proveedor LLM", ["LocalAI", "Google AI Studio"])
     
-    recent_history = filtered_history[-MAX_HISTORY_MESSAGES:]
-
-    if recent_history and recent_history[0]["role"] == "assistant":
-        recent_history.pop(0)
-        logging.info("Se eliminó un mensaje de assistant al inicio para mantener la alternancia.")
-
-    logging.info(f"Mensajes enviados: {[m['role'] for m in recent_history]}")
-
-    return [{"role": "system", "content": system_prompt}] + recent_history
-
-
-def stream_llm_response(
-    engine: str,
-    base_url: str,
-    api_key: str,
-    model_name: str,
-    messages: list[dict[str, str]],
-    temperature: float,
-    max_tokens: int,
-):
-    if engine == "LocalAI":
-        llm = ChatOpenAI(
-            model=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            api_key=api_key,
-            base_url=base_url,
-            streaming=True,
-            model_kwargs={"stream_options": {"include_usage": True}}
-        )
-        logging.info("Enviando completación a LocalAI (modelo: %s)...", model_name)
+    if provider == "Google AI Studio":
+        api_key = st.text_input("Google API Key", value=DEFAULT_GEMINI_KEY, type="password", help="Tu API Key de Google AI Studio")
+        model_name = st.text_input("Modelo", value=DEFAULT_GEMINI_MODEL)
+        base_url = ""
     else:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            google_api_key=api_key
-        )
-        logging.info("Enviando completación a Google AI Studio (modelo: %s)...", model_name)
+        base_url = st.text_input("LocalAI base URL", value=DEFAULT_BASE_URL)
+        api_key = st.text_input("API key (Opcional)", value=DEFAULT_API_KEY, type="password")
+        model_name = st.text_input("Modelo", value=DEFAULT_MODEL)
         
-    start_time = time.time()
-
-    # Convert dict messages to Langchain messages
-    lc_messages = []
-    for m in messages:
-        role = m.get("role")
-        content = m.get("content", "")
-        if role == "system":
-            lc_messages.append(SystemMessage(content=content))
-        elif role == "user":
-            lc_messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            lc_messages.append(AIMessage(content=content))
-
-    # Estimate prompt tokens locally just in case the API omits it (like Gemini Streaming)
-    estimated_prompt_tokens = 0
-    try:
-        import tiktoken
-        encoding = tiktoken.get_encoding("cl100k_base")
-        estimated_prompt_tokens = sum(len(encoding.encode(m.get("content", ""))) for m in messages)
-    except Exception:
-        pass
-
-    for chunk in llm.stream(lc_messages):
-        if chunk.content:
-            content_str = chunk.content
-            if isinstance(content_str, list):
-                # Extract text from blocks (ignoring thinking blocks)
-                texts = [block.get("text", "") for block in content_str if isinstance(block, dict) and "text" in block]
-                content_str = "".join(texts)
-                
-            if content_str:
-                yield {"type": "token", "content": content_str}
-
-        # Check if usage metadata is available in LangChain chunks
-        usage = getattr(chunk, "usage_metadata", None)
-        if usage and (usage.get("total_tokens", 0) > 0 or usage.get("output_tokens", 0) > 0):
-            input_toks = usage.get("input_tokens", 0)
-            output_toks = usage.get("output_tokens", 0)
-            
-            # Si Gemini omitió los input tokens, usamos la estimación local
-            if input_toks == 0 and estimated_prompt_tokens > 0:
-                input_toks = estimated_prompt_tokens
-                
-            total_toks = input_toks + output_toks
-
-            usage_dict = {
-                "prompt_tokens": input_toks,
-                "completion_tokens": output_toks,
-                "total_tokens": total_toks,
-            }
-            yield {"type": "usage", "content": usage_dict}
-
-    logging.info("Respuesta recibida en %.2f segundos.", time.time() - start_time)
-
-
-def format_chat_for_export(messages: list[dict[str, str]]) -> str:
-    """Convierte el historial de mensajes en texto estructurado tipo Markdown."""
-    lines = []
-    lines.append("# Historial de Conversación - Asistente Corporativo TQ")
-    lines.append(f"*Fecha de exportación: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
-    lines.append("---\n")
+    temp = st.slider("Temperatura", 0.0, 1.0, 0.1)
+    max_tokens = st.number_input("Máximo tokens", 128, 4096, 2048)
     
-    for msg in messages:
-        role = "**Usuario:**" if msg["role"] == "user" else " **Asistente:**"
-        content = msg.get("content", "")
-        lines.append(f"{role}\n{content}\n")
-        lines.append("---\n")
-        
-    return "\n".join(lines)
-
-
-def main() -> None:
-    st.set_page_config(
-        page_title="Asistente Corporativo TQ",
-        layout="wide",
-    )
-
-    st.title("Asistente Corporativo Grupo Empresarial Tecnoquímicas")
-
-    # Limpiar historial si tiene mensajes duplicados o mal formados
-    if "messages" in st.session_state:
-        cleaned = []
-        prev_role = None
-        for msg in st.session_state.get("messages", []):
-            role = msg.get("role")
-            content = msg.get("content", "").strip()
-            if not content or role == prev_role:
-                continue
-            cleaned.append(msg)
-            prev_role = role
-        st.session_state.messages = cleaned
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    with st.sidebar:
-        st.header("Configuración")
-        
-        engine = st.radio("Motor de Inferencia", options=["LocalAI", "Google AI Studio"])
-        
-        if engine == "LocalAI":
-            base_url = st.text_input("LocalAI base URL", value=DEFAULT_BASE_URL)
-            api_key = st.text_input("API key", value=DEFAULT_API_KEY, type="password")
-            model_name = st.text_input("Modelo", value=DEFAULT_MODEL)
-        else:
-            base_url = ""
-            api_key = st.text_input("Google AI Studio API key", value=os.getenv("GEMINI_API_KEY", ""), type="password")
-            model_name = st.text_input("Modelo", value="gemini-2.5-flash")
-            
-        temperature = st.slider("Temperatura", min_value=0.0, max_value=1.0, value=0.1, step=0.05)
-        max_tokens = st.number_input("Máximo de tokens de salida", min_value=128, max_value=8192, value=2048, step=128)
-
-        st.divider()
-        st.caption(f"Prompt: `{PROMPT_FILE_PATH}`")
-        
-        # Botones de acción del chat
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Limpiar chat"):
-                st.session_state.messages = []
-                st.rerun()
-                
-        with col2:
-            # Solo mostrar botón de exportación si hay mensajes
-            if st.session_state.messages:
-                export_text = format_chat_for_export(st.session_state.messages)
-                st.download_button(
-                    label="Exportar MD",
-                    data=export_text,
-                    file_name=f"chat_tq_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
-                    mime="text/markdown"
-                )
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-            if message.get("usage"):
-                st.caption(message["usage"])
-
-    user_question = st.chat_input("Escribe una pregunta sobre Grupo Empresarial Tecnoquímicas")
-    if not user_question:
-        return
-
-    st.session_state.messages.append({"role": "user", "content": user_question})
-    with st.chat_message("user"):
-        st.markdown(user_question)
-
-    messages = build_messages(st.session_state.messages)
-
-    with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        usage_placeholder = st.empty()
-        full_response = ""
-        final_usage_text = ""
-
-        try:
-            with st.spinner(""):
-                for item in stream_llm_response(
-                    engine=engine,
-                    base_url=base_url,
-                    api_key=api_key,
-                    model_name=model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=int(max_tokens),
-                ):
-                    if not isinstance(item, dict):
-                        # Fallback for unexpected string items
-                        full_response += str(item)
-                        response_placeholder.markdown(full_response)
-                        continue
-
-                    if item.get("type") == "token":
-                        full_response += item.get("content", "")
-                        response_placeholder.markdown(full_response)
-                    elif item.get("type") == "usage":
-                        u = item.get("content", {})
-                        final_usage_text = f"Tokens — prompt: {u.get('prompt_tokens')}, completion: {u.get('completion_tokens')}, total: {u.get('total_tokens')}"
-                        usage_placeholder.caption(final_usage_text)
-        except Exception as error:
-            logging.exception(f"Error consultando {engine}")
-            full_response = f"Error consultando {engine}: {error}"
-            response_placeholder.error(full_response)
-
-    # Solo guardar si hay contenido real
-    if full_response and not full_response.startswith("Error consultando"):
-        msg_to_save = {"role": "assistant", "content": full_response}
-        if final_usage_text:
-            msg_to_save["usage"] = final_usage_text
-        st.session_state.messages.append(msg_to_save)
-        # Forzar un rerun para que el botón de descarga se actualice con el nuevo mensaje
+    # Toggle para visualización de razonamiento interno
+    debug_mode = st.toggle("Modo Debug", value=True)
+    
+    if st.button("Limpiar Chat"):
+        st.session_state.clear()
         st.rerun()
 
-if __name__ == "__main__":
-    main()
+# 3. Preparación del Workflow de LangGraph
+workflow_config = {
+    "configurable": {
+        "thread_id": thread_id,
+        "provider": provider,
+        "model": model_name,
+        "temperature": temp,
+        "base_url": base_url,
+        "api_key": api_key,
+        "max_tokens": int(max_tokens)
+    }
+}
+
+# 4. Renderizado del Historial de Conversación
+state = agent_executor.get_state(workflow_config)
+messages = state.values.get("messages", []) if state.values else []
+
+for msg in messages:
+    if isinstance(msg, (HumanMessage, AIMessage)):
+        role = "human" if isinstance(msg, HumanMessage) else "assistant"
+        with st.chat_message(role):
+            st.write(get_message_text(msg))
+            display_tokens(msg)
+
+# 5. Interacción del Usuario y Ejecución del Agente
+prompt = st.chat_input("¿Qué deseas saber sobre TQ?", key="chat_input")
+if prompt:
+    st.chat_message("human").write(prompt)
+    
+    with st.chat_message("assistant"):
+        with st.spinner("Procesando consulta..."):
+            # Invocación al agente con el mensaje actual
+            response = agent_executor.invoke(
+                {"messages": [HumanMessage(content=prompt)]}, 
+                config=workflow_config
+            )
+        
+        # Visualización de pensamientos (opcional vía debug_mode)
+        if debug_mode:
+            with st.expander("🧠 Debug Mode"):
+                st.info(f"**Decisión del Enrutador:** {response.get('route_decision', 'N/A')}")
+                st.write("**Contexto recuperado:**")
+                st.code(response.get('data_context', 'No se recuperó contexto.'), language="markdown")
+                if response.get("data_found") is not None:
+                    st.write(f"**¿Datos encontrados en JSON?:** {response.get('data_found')}")
+
+        # Renderizado de la respuesta final y estadísticas
+        last_msg = response["messages"][-1]
+        st.write(get_message_text(last_msg))
+        display_tokens(last_msg)

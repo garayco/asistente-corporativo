@@ -1,0 +1,56 @@
+{
+  "datos_basicos": {
+    "nit": "890300466-4",
+    "nombre_legal": "Tecnoquímicas S.A.",
+    "fecha_fundacion": "17 de diciembre de 1934",
+    "nombre_original": "Colombia Sales Company",
+    "sede_principal": "Cali, Colombia",
+    "direccion_sede_principal": "Calle 23 No. 7 - 39, Barrio San Nicolás",
+    "telefono_pbx": "+57 602 882 5555",
+    "linea_atencion_consumidor": "01 8000 52 33 39"
+  },
+  "presencia_geografica": {
+    "paises_presencia_directa": [
+      "Colombia",
+      "Ecuador",
+      "El Salvador",
+      "Guatemala",
+      "Honduras",
+      "Nicaragua",
+      "Panamá",
+      "Costa Rica",
+      "República Dominicana"
+    ],
+    "exportaciones": "Más de 20 países de América",
+    "sedes_productivas_colombia": [
+      "Cali (Sede San Nicolás)",
+      "Villa Rica, Cauca (Plantas Tecnosur y Tecnofar)",
+      "Jamundí, Valle",
+      "Yumbo, Valle"
+    ]
+  },
+  "marcas_lideres": [
+    "MK",
+    "Winny",
+    "Content",
+    "Sal de Frutas LUA",
+    "Bonfiest",
+    "Noraver",
+    "Crema No. 4",
+    "Ibuflash",
+    "Duraflex",
+    "Hidraplus",
+    "CureBand",
+    "Yodora"
+  ],
+  "metricas_clave": {
+    "total_colaboradores": "Más de 8.200",
+    "permanencia_promedio": "8 años",
+    "porcentaje_empleados_colombia": "90%",
+    "referencias_productos": "Alrededor de 4.000"
+  },
+  "horarios_atencion": {
+    "oficinas_administrativas": "Lunes a Viernes de 7:30 AM a 5:30 PM",
+    "comentario": "Sujeto a cambios según sede y festivos."
+  }
+}

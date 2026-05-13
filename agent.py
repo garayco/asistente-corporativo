@@ -151,10 +151,22 @@ def router_node(state: AgentState, config: RunnableConfig) -> dict:
     
     llm = get_llm(config, temperature=0.0)
     
-    messages_for_llm = [SystemMessage(content=system_prompt)] + state.get("messages", [])
+    # Extraemos el proveedor para aplicar lógica condicional de historial
+    provider = config.get("configurable", {}).get("provider", "LocalAI")
+    
+    if provider == "Google AI Studio":
+        # Modelos grandes pueden deducir información del historial sin confundirse
+        messages_for_llm = [SystemMessage(content=system_prompt)] + state.get("messages", [])
+    else:
+        # Modelos pequeños requieren aislar la pregunta para evitar confusión de roles
+        messages_for_llm = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"Petición del usuario a clasificar: {user_prompt}")
+        ]
+
     llm_response = llm.invoke(messages_for_llm)
     
-    # Manejo de respuesta tipo lista (especialmente para modelos con razonamiento de Google)
+    # Manejo de respuesta tipo lista
     content = llm_response.content
     if isinstance(content, list):
         # Filtramos solo los bloques de texto, ignorando los de 'thinking'

@@ -34,7 +34,7 @@ def get_llm(config: RunnableConfig, temperature: float = 0.0):
     
     if provider == "Google AI Studio":
         api_key = params.get("api_key", "")
-        model = params.get("model", "gemini-1.5-flash")
+        model = params.get("model", "gemma-4-26b-a4b-it")
         return ChatGoogleGenerativeAI(
             model=model,
             temperature=temperature,

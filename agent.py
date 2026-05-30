@@ -112,7 +112,10 @@ def decide_next_step(state: AgentState) -> str:
         return "go_to_rag"
     elif decision == "DATOS":
         return "go_to_data"
+    elif decision == "DIRECTO":
+        return "go_to_response"
     else:
+        # Fallback de seguridad para cualquier otra respuesta inesperada
         return "go_to_response"
 
 def check_data_success(state: AgentState) -> str:

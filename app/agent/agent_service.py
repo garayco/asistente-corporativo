@@ -65,6 +65,11 @@ def ask_agent(payload: ChatRequest) -> tuple[str, list]:
             logger.info("Usando Google API Key dinámica provista por el cliente.")
             executor = build_agent(google_api_key=payload.api_key)
         else:
+            if agent_executor is None:
+                raise ValueError(
+                    "El agente por defecto no está inicializado porque falta la clave GOOGLE_API_KEY en el servidor. "
+                    "Por favor, configure la clave de API en los Secrets del servidor o proporciónela en el panel lateral de la aplicación."
+                )
             executor = agent_executor
 
         result = executor.invoke(

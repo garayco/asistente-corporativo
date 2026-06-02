@@ -110,4 +110,12 @@ def build_agent(google_api_key: Optional[str] = None):
     )
 
 
-agent_executor = build_agent()
+agent_executor = None
+try:
+    agent_executor = build_agent()
+except Exception as e:
+    import logging
+    logging.getLogger("agent_debugger").warning(
+        f"No se pudo inicializar el agent_executor global por defecto. "
+        f"Se requerirá proveer una API Key en cada petición o configurar el entorno. Detalle: {e}"
+    )

@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
 from langchain.agents import create_agent

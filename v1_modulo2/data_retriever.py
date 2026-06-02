@@ -1,6 +1,6 @@
 import json
 import logging
-from config import PROJECT_DIR
+from v1_modulo2.config import PROJECT_DIR
 
 logger = logging.getLogger(__name__)
 

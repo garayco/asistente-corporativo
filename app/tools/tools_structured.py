@@ -6,8 +6,8 @@ from typing import Optional
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from app.rag_langchain import search_knowledge_base
-from data_retriever import get_corporate_data
+from app.services.rag_langchain import search_knowledge_base
+from app.tools.data_retriever import get_corporate_data
 
 
 LOG_DIR = Path("logs")
@@ -18,14 +18,14 @@ ESCALATIONS_FILE = LOG_DIR / "escalations.jsonl"
 class BuscarBaseConocimientoInput(BaseModel):
     query: str = Field(
         ...,
-        description="Pregunta del usuario que debe consultarse en la base documental RAG.",
+        description="Término de búsqueda para consultar historia, procesos, cultura, RSE, sostenibilidad o liderazgo.",
     )
 
 
 class ConsultarDatosCorporativosInput(BaseModel):
     query: str = Field(
         ...,
-        description="Pregunta del usuario sobre datos corporativos estructurados: marcas, productos, horarios, sedes, contacto o métricas.",
+        description="Término clave para buscar datos básicos, contacto o métricas corporativas.",
     )
 
 
@@ -46,8 +46,7 @@ class EscalarHumanoInput(BaseModel):
 def buscar_base_conocimiento(query: str) -> str:
     """
     Busca información en la base documental de Tecnoquímicas usando RAG.
-    Úsala cuando el usuario pregunte por historia, productos, servicios, responsabilidad corporativa,
-    información institucional o detalles que puedan estar en documentos largos.
+    Úsala exclusivamente para consultas narrativas o amplias sobre: historia de la empresa, descripción y procesos detallados de productos, cultura corporativa, responsabilidad social (RSE), sostenibilidad o liderazgo.
     """
     try:
         return search_knowledge_base(query)
@@ -61,9 +60,8 @@ def buscar_base_conocimiento(query: str) -> str:
 @tool(args_schema=ConsultarDatosCorporativosInput)
 def consultar_datos_corporativos(query: str) -> str:
     """
-    Consulta datos estructurados de Tecnoquímicas almacenados en JSON.
-    Úsala para preguntas sobre marcas, productos, horarios, presencia geográfica, contacto,
-    empleados, referencias, sedes o datos concretos de la empresa.
+    Consulta datos estructurados de Tecnoquímicas almacenados en JSON de forma rápida y determinista.
+    Úsala exclusivamente para preguntas concretas sobre: datos básicos (nit, PBX, dirección, fundador), marcas líderes (winny, mk, yodora), horarios de atención, presencia geográfica (países, exportaciones, sedes) o métricas cuantitativas (colaboradores, permanencia).
     """
     try:
         result = get_corporate_data(query)
@@ -91,7 +89,7 @@ def registrar_lead(
 ) -> str:
     """
     Registra un cliente potencial interesado en productos o servicios de Tecnoquímicas.
-    Esta herramienta representa una acción sensible porque guarda datos de contacto.
+    Úsala ÚNICAMENTE cuando el usuario solicite explícitamente ser contactado, cotizar o registrar interés comercial, y provea sus datos. Esta es una acción transaccional sensible.
     """
     LOG_DIR.mkdir(exist_ok=True)
 
@@ -120,8 +118,8 @@ def escalar_a_humano(
     prioridad: str = "media",
 ) -> str:
     """
-    Escala una conversación a un asesor humano cuando el usuario solicita atención personalizada,
-    presenta una queja, requiere soporte específico o la consulta no debe ser respondida automáticamente.
+    Escala una conversación a un asesor humano.
+    Úsala ÚNICAMENTE cuando el usuario presente una queja formal, un reclamo serio, o solicite de forma explícita y literal hablar con un asesor humano o atención personalizada.
     """
     LOG_DIR.mkdir(exist_ok=True)
 

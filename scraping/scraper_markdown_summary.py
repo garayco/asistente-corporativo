@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuración para Google Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GEMINI_MODEL_NAME = "gemma-4-31b-it"
 
 def generar_resumen(contenido_completo):

@@ -5,8 +5,9 @@ import uuid
 import requests
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, PointStruct, VectorParams
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from config import (
+from v1_modulo2.config import (
     DATASET_CHUNKED_PATH, EMBEDDING_BATCH_SIZE, EMBEDDING_DIM,
     EMBEDDING_MODEL, LOCALAI_API_KEY, LOCALAI_BASE_URL,
     QDRANT_API_KEY, QDRANT_COLLECTION, QDRANT_URL,

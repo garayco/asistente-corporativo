@@ -6,7 +6,12 @@ class ChatRequest(BaseModel):
     user_id: str = Field(
         ...,
         min_length=3,
-        description="Identificador único del usuario. En WhatsApp será el número de teléfono.",
+        description="Identificador único del usuario para auditoría, límites o consumo de tokens.",
+    )
+    thread_id: str = Field(
+        ...,
+        min_length=3,
+        description="Identificador del hilo de conversación para mantener la memoria del chat.",
     )
     message: str = Field(
         ...,
@@ -22,8 +27,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     user_id: str
+    thread_id: str
     response: str
-    status: Literal["ok", "error"] = "ok"
+    status: str = "ok"
 
 
 class HealthResponse(BaseModel):

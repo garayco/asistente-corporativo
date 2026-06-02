@@ -27,14 +27,9 @@ def get_checkpointer():
     global _pool, _checkpointer
 
     if _checkpointer is not None:
-        print("Checkpointer ya creado:", type(_checkpointer))
         return _checkpointer
 
     database_url = os.getenv("DATABASE_URL")
-
-    print("DATABASE_URL existe:", bool(database_url))
-    print("PostgresSaver disponible:", PostgresSaver is not None)
-    print("ConnectionPool disponible:", ConnectionPool is not None)
 
     if database_url and PostgresSaver and ConnectionPool:
         _pool = ConnectionPool(
@@ -50,9 +45,7 @@ def get_checkpointer():
         _checkpointer = PostgresSaver(_pool)
         _checkpointer.setup()
 
-        print("Usando PostgresSaver:", type(_checkpointer))
         return _checkpointer
 
     _checkpointer = InMemorySaver()
-    print("Usando InMemorySaver:", type(_checkpointer))
     return _checkpointer

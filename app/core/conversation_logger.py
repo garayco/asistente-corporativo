@@ -14,6 +14,7 @@ def log_conversation(
     response: Optional[str] = None,
     status: str = "ok",
     error: Optional[str] = None,
+    tools_used: Optional[list] = None,
 ) -> None:
     LOG_DIR.mkdir(exist_ok=True)
 
@@ -24,6 +25,7 @@ def log_conversation(
         "response": response,
         "status": status,
         "error": error,
+        "tools_used": tools_used or [],
     }
 
     with LOG_FILE.open("a", encoding="utf-8") as f:

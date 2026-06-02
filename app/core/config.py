@@ -12,14 +12,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ──────────────────────────  Paths  ──────────────────────────
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 DATASET_CHUNKED_PATH = PROJECT_DIR / "scraping" / "output" / "dataset_chunked.json"
 PROMPT_FILE_PATH = PROJECT_DIR / "scraping" / "output" / "tq_system_prompt.md"
 
 # ──────────────────────────  LocalAI (LLM & Embeddings)  ──────────────────────────
 LOCALAI_BASE_URL = os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1")
 LOCALAI_API_KEY  = os.getenv("LOCALAI_API_KEY", "")
-GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY   = os.getenv("GOOGLE_API_KEY", "")
 
 # LLM Config (usado por el chatbot)
 CHAT_MODEL = os.getenv("LOCALAI_MODEL", "gemma-3-12b-it-UD-IQ2_XXS.gguf")

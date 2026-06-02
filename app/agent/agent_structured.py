@@ -18,24 +18,37 @@ load_dotenv()
 def build_model():
     provider = os.getenv("MODEL_PROVIDER", "google_genai")
 
-
     if provider == "google_genai":
+        kwargs = {
+            "temperature": 0.1,
+            "max_tokens": int(os.getenv("MAX_TOKENS", "512")),
+        }
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            kwargs["google_api_key"] = api_key
+            
         return init_chat_model(
             os.getenv("GOOGLE_MODEL", "gemini-2.5-flash-lite"),
             model_provider="google_genai",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.1,
-            max_tokens=int(os.getenv("MAX_TOKENS", "512")),
+            **kwargs
         )
 
     if provider == "localai":
+        kwargs = {
+            "temperature": 0.1,
+            "max_tokens": int(os.getenv("MAX_TOKENS", "1024")),
+        }
+        api_key = os.getenv("LOCALAI_API_KEY")
+        if api_key:
+            kwargs["api_key"] = api_key
+        base_url = os.getenv("LOCALAI_BASE_URL")
+        if base_url:
+            kwargs["base_url"] = base_url
+            
         return init_chat_model(
             os.getenv("LOCALAI_MODEL", "local-model"),
             model_provider="openai",
-            api_key=os.getenv("LOCALAI_API_KEY", "not-needed"),
-            base_url=os.getenv("LOCALAI_BASE_URL", "http://localhost:8080/v1"),
-            temperature=0.1,
-            max_tokens=int(os.getenv("MAX_TOKENS", "1024")),
+            **kwargs
         )
 
     raise ValueError(f"Proveedor de modelo no soportado: {provider}")

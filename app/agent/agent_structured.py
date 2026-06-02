@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from typing import Optional
 from langchain_ollama import ChatOllama
 from dotenv import load_dotenv
@@ -110,12 +111,6 @@ def build_agent(google_api_key: Optional[str] = None):
     )
 
 
-agent_executor = None
-try:
-    agent_executor = build_agent()
-except Exception as e:
-    import logging
-    logging.getLogger("agent_debugger").warning(
-        f"No se pudo inicializar el agent_executor global por defecto. "
-        f"Se requerirá proveer una API Key en cada petición o configurar el entorno. Detalle: {e}"
-    )
+@lru_cache(maxsize=1)
+def get_default_agent():
+    return build_agent()

@@ -15,7 +15,7 @@ from app.tools.tools_structured import STRUCTURED_TOOLS
 load_dotenv()
 
 
-def build_model():
+def build_model(google_api_key: Optional[str] = None):
     provider = os.getenv("MODEL_PROVIDER", "google_genai")
 
     if provider == "google_genai":
@@ -23,7 +23,7 @@ def build_model():
             "temperature": 0.1,
             "max_tokens": int(os.getenv("MAX_TOKENS", "512")),
         }
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = google_api_key or os.getenv("GOOGLE_API_KEY")
         if api_key:
             kwargs["google_api_key"] = api_key
             
@@ -82,10 +82,10 @@ Tu función es responder preguntas de usuarios internos o externos usando EXCLUS
 """
 
 
-def build_agent():
+def build_agent(google_api_key: Optional[str] = None):
     checkpointer = get_checkpointer()
 
-    model = build_model()
+    model = build_model(google_api_key)
 
     return create_agent(
         model=model,

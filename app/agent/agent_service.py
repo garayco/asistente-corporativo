@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from app.agent.agent_structured import agent_executor
+from app.agent.agent_structured import agent_executor, build_agent
 from app.api.schemas import ChatRequest
 
 
@@ -61,7 +61,13 @@ def ask_agent(payload: ChatRequest) -> tuple[str, list]:
         logger.info(f"User ID: {payload.user_id} | Thread ID: {payload.thread_id}")
         logger.info(f"Pregunta del usuario: '{payload.message}'")
 
-        result = agent_executor.invoke(
+        if payload.api_key:
+            logger.info("Usando Google API Key dinámica provista por el cliente.")
+            executor = build_agent(google_api_key=payload.api_key)
+        else:
+            executor = agent_executor
+
+        result = executor.invoke(
             {
                 "messages": [
                     {

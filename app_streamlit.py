@@ -1,5 +1,6 @@
 import streamlit as st
 import uuid
+import os
 from pathlib import Path
 
 # Cargar variables de entorno antes de importar componentes del agente
@@ -97,6 +98,14 @@ with st.sidebar:
         value="tester_local",
         help="Identificador del usuario para auditoría de conversaciones.",
     )
+
+    # Entrada de API Key (opcional, si no está en las variables de entorno)
+    google_api_key = st.text_input(
+        "Google API Key (Opcional)",
+        type="password",
+        value=os.getenv("GOOGLE_API_KEY", ""),
+        help="Clave de API de Google AI Studio. Si no se provee, la app usará la definida en los Secrets de la nube o en el archivo .env local.",
+    )
     
     # Generar Thread ID inicial si no existe en la sesión
     if "thread_id" not in st.session_state:
@@ -159,6 +168,7 @@ if user_query := st.chat_input("Escribe tu pregunta sobre Tecnoquímicas (e.g. N
                 user_id=user_id,
                 thread_id=thread_id,
                 message=user_query,
+                api_key=google_api_key if google_api_key else None,
             )
             
             # Ejecutar lógica del agente

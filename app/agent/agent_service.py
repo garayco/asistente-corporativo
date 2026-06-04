@@ -38,12 +38,17 @@ def _extract_response_and_tools(result: Dict[str, Any]) -> tuple[str, list]:
     messages = result.get("messages", [])
     tools_used = []
 
-    # Extraer historial de herramientas usadas en esta invocación
     for msg in messages:
         # Algunos modelos guardan llamadas en 'tool_calls' (LangChain moderno)
         if getattr(msg, "tool_calls", None):
             for tool in msg.tool_calls:
-                tools_used.append(tool.get("name"))
+                name = tool.get("name")
+                args = tool.get("args", {})
+                if args:
+                    args_str = ", ".join(f"{k}='{v}'" for k, v in args.items())
+                    tools_used.append(f"{name}({args_str})")
+                else:
+                    tools_used.append(name)
 
     if messages:
         last_message = messages[-1]

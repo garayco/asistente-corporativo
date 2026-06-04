@@ -90,6 +90,13 @@ st.markdown(
 
 # Sidebar (Configuración e Información del Hilo de Conversación)
 with st.sidebar:
+    st.markdown("### 🗺️ Navegación")
+    app_mode = st.radio(
+        "Seleccione la vista:",
+        ["💬 Chat de Pruebas", "📊 Monitor"],
+        index=0
+    )
+    st.markdown("---")
     st.markdown("### ⚙️ Configuración del Test")
     
     # ID de Usuario para simulación
@@ -137,63 +144,189 @@ with st.sidebar:
         f"📂 **Logs locales:** \n`logs/conversations.jsonl`"
     )
 
-# Inicializar historial de chat en session_state si no existe
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Función auxiliar para leer archivos JSONL de forma segura
+def read_jsonl(filepath):
+    path = Path(filepath)
+    if not path.exists():
+        return []
+    records = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                try:
+                    records.append(json.loads(line.strip()))
+                except Exception:
+                    pass
+    return records
 
-# Mostrar el historial de chat guardado
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-        # Si se usaron herramientas en este mensaje del asistente, mostrarlas de forma elegante
-        if msg["role"] == "assistant" and msg.get("tools"):
-            tools_html = "".join([f'<span class="tool-tag">🛠️ {t}</span>' for t in msg["tools"]])
-            st.markdown(f"**Ruta del Agente:** {tools_html}", unsafe_allow_html=True)
+if app_mode == "💬 Chat de Pruebas":
+    # Inicializar historial de chat en session_state si no existe
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-# Entrada de texto del usuario
-if user_query := st.chat_input("Escribe tu pregunta sobre Tecnoquímicas (e.g. NIT, productos, políticas)..."):
+    # Mostrar el historial de chat guardado
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Entrada de texto del usuario
+    if user_query := st.chat_input("Escribe tu pregunta sobre Tecnoquímicas (e.g. NIT, productos, políticas)..."):
+        
+        # 1. Agregar y mostrar mensaje del usuario en la UI
+        st.session_state.messages.append({"role": "user", "content": user_query})
+        with st.chat_message("user"):
+            st.markdown(user_query)
+
+        # 2. Generar respuesta llamando al servicio del agente
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            
+            with st.spinner("El asistente de TQ está consultando la información..."):
+                # Construir payload idéntico a la API
+                payload = ChatRequest(
+                    user_id=user_id,
+                    thread_id=thread_id,
+                    message=user_query,
+                    api_key=google_api_key if google_api_key else None,
+                )
+                
+                # Ejecutar lógica del agente
+                response, tools_used = ask_agent(payload)
+                
+                # Registrar conversación en logs/conversations.jsonl de la misma forma que la API
+                log_conversation(
+                    user_id=user_id,
+                    message=user_query,
+                    response=response,
+                    status="ok",
+                    tools_used=tools_used,
+                )
+                
+            # Renderizar la respuesta del asistente
+            response_placeholder.markdown(response)
+                
+        # Guardar la respuesta en el estado de la sesión
+        st.session_state.messages.append({
+            "role": "assistant", 
+            "content": response,
+            "tools": tools_used
+        })
+
+else:
+    # VISTA: Monitor
+    st.markdown("## 📊 Monitor de Observabilidad y Auditoría en Vivo")
+    st.markdown(
+        "Esta vista permite analizar en tiempo real el comportamiento técnico del agente, "
+        "mostrando el uso de herramientas, leads capturados y escalamientos de chat."
+    )
+
+    # 1. Cargar datos
+    import json
+    conversations = read_jsonl("logs/conversations.jsonl")
+    leads = read_jsonl("logs/leads.jsonl")
+    escalations = read_jsonl("logs/escalations.jsonl")
+
+    # 2. Computar Métricas Clave
+    total_msgs = len(conversations)
+    unique_threads = len(set(c.get("thread_id") or c.get("user_id") for c in conversations))
     
-    # 1. Agregar y mostrar mensaje del usuario en la UI
-    st.session_state.messages.append({"role": "user", "content": user_query})
-    with st.chat_message("user"):
-        st.markdown(user_query)
+    # Contar herramientas utilizadas
+    rag_calls = 0
+    db_calls = 0
+    leads_calls = 0
+    escalations_calls = 0
+    
+    for c in conversations:
+        for tool in c.get("tools_used", []):
+            if "buscar_base" in tool:
+                rag_calls += 1
+            elif "consultar_datos" in tool:
+                db_calls += 1
+            elif "registrar_lead" in tool:
+                leads_calls += 1
+            elif "escalar" in tool:
+                escalations_calls += 1
 
-    # 2. Generar respuesta llamando al servicio del agente
-    with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        
-        with st.spinner("El asistente de TQ está consultando la información..."):
-            # Construir payload idéntico a la API
-            payload = ChatRequest(
-                user_id=user_id,
-                thread_id=thread_id,
-                message=user_query,
-                api_key=google_api_key if google_api_key else None,
-            )
-            
-            # Ejecutar lógica del agente
-            response, tools_used = ask_agent(payload)
-            
-            # Registrar conversación en logs/conversations.jsonl de la misma forma que la API
-            log_conversation(
-                user_id=user_id,
-                message=user_query,
-                response=response,
-                status="ok",
-                tools_used=tools_used,
-            )
-            
-        # Renderizar la respuesta del asistente
-        response_placeholder.markdown(response)
-        
-        # Renderizar de forma elegante las herramientas empleadas si el agente usó alguna
-        if tools_used:
-            tools_html = "".join([f'<span class="tool-tag">🛠️ {t}</span>' for t in tools_used])
-            st.markdown(f"**Ruta del Agente:** {tools_html}", unsafe_allow_html=True)
-            
-    # Guardar la respuesta en el estado de la sesión
-    st.session_state.messages.append({
-        "role": "assistant", 
-        "content": response,
-        "tools": tools_used
-    })
+    # Fila de métricas principales
+    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+    with m_col1:
+        st.metric("Total Mensajes", total_msgs)
+    with m_col2:
+        st.metric("Hilos de Chat Únicos", unique_threads)
+    with m_col3:
+        st.metric("Leads Registrados", len(leads))
+    with m_col4:
+        st.metric("Escalamientos a Humano", len(escalations))
+
+    # Fila de herramientas
+    st.markdown("### ⚙️ Uso de Herramientas (Enrutamiento del Agente)")
+    h_col1, h_col2, h_col3, h_col4 = st.columns(4)
+    with h_col1:
+        st.info(f"📚 **RAG (Docs):** {rag_calls}")
+    with h_col2:
+        st.success(f"🗃️ **Base de Datos (JSON):** {db_calls}")
+    with h_col3:
+        st.warning(f"📝 **Registros de Lead:** {leads_calls}")
+    with h_col4:
+        st.error(f"👤 **Escalamiento Humano:** {escalations_calls}")
+
+    # Tabs para ver detalles
+    tab_logs, tab_leads, tab_escalations = st.tabs([
+        "📜 Historial de Chats (Últimos)", 
+        "📝 Leads Recientes", 
+        "🚨 Solicitudes de Escalamiento"
+    ])
+
+    with tab_logs:
+        st.markdown("#### Historial Reciente (Log de Auditoría)")
+        if not conversations:
+            st.info("No hay logs conversacionales registrados aún.")
+        else:
+            # Mostrar los últimos 15 mensajes primero
+            for c in reversed(conversations[-15:]):
+                time_str = c.get("timestamp", "N/A")
+                user = c.get("user_id", "N/A")
+                msg_txt = c.get("message", "")
+                resp_txt = c.get("response", "")
+                tools = c.get("tools_used", [])
+
+                with st.expander(f"🕒 {time_str} | Usuario: {user} | Pregunta: '{msg_txt[:40]}...'"):
+                    st.write(f"**Usuario:** {msg_txt}")
+                    
+                    # Mostrar herramientas usadas de forma llamativa
+                    if tools:
+                        st.markdown("**Herramientas Invocadas por el Agente:**")
+                        tools_html = "".join([f'<span class="tool-tag">🛠️ {t}</span>' for t in tools])
+                        st.markdown(tools_html, unsafe_allow_html=True)
+                    else:
+                        st.markdown("*El agente respondió sin invocar herramientas (Respuesta Directa).*")
+                    
+                    st.write(f"**Respuesta del Agente:** {resp_txt}")
+
+    with tab_leads:
+        st.markdown("#### Clientes Potenciales Registrados (Leads)")
+        if not leads:
+            st.info("No se han registrado leads todavía.")
+        else:
+            for l in reversed(leads):
+                st.markdown(
+                    f"👤 **Nombre:** {l.get('nombre')} | 📱 **Teléfono:** {l.get('telefono')} | "
+                    f"🎯 **Interés:** {l.get('interes')} | 🕒 {l.get('timestamp')}"
+                )
+                st.markdown("---")
+
+    with tab_escalations:
+        st.markdown("#### Solicitudes de Intervención Humana")
+        if not escalations:
+            st.info("No hay solicitudes de escalamiento activas.")
+        else:
+            for e in reversed(escalations):
+                prio_color = "🔴" if e.get("prioridad") == "alta" else "🟡"
+                st.markdown(
+                    f"{prio_color} **Prioridad:** {e.get('prioridad').upper()} | "
+                    f"📱 **Teléfono:** {e.get('telefono')} | 📝 **Motivo:** {e.get('motivo')} | "
+                    f"🕒 {e.get('timestamp')}"
+                )
+                st.markdown("---")
+
+
